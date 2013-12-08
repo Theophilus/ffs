@@ -8,7 +8,6 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/time.h>
-#include <dirent.h>
 
 char *log_file_path;
 char *stats_file_path="stats.log";
@@ -53,26 +52,18 @@ static int lfs_readlink(const char *path, char *buf, size_t size){
 
 static int lfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
                          off_t offset, struct fuse_file_info *fi){
-  DIR *dp;
-  struct dirent *de;
-
+  //The DIR stuff was causing it to copy all the ilab directories.  This doesn't
+  //However I still can't figure out how to make a file appear in the new directory -.-
   (void) offset;
-  (void) fi;
-
-  dp = opendir(path);
-  if (dp == NULL)
-    return -errno;
-
-  while ((de = readdir(dp)) != NULL) {
-    struct stat st;
-    memset(&st, 0, sizeof(st));
-    st.st_ino = de->d_ino;
-    st.st_mode = de->d_type << 12;
-    if (filler(buf, de->d_name, &st, 0))
-      break;
-  }
-
-  closedir(dp);
+  (void)  fi;
+  
+  if(strcmp(path, "/") != 0)
+    return -ENOENT;
+    
+  filler(buf, ".", NULL, 0);
+  filler(buf, "..", NULL, 0);
+  filler(buf, log_file_path + 1, NULL, 0);
+  
   return 0;
 }
 
