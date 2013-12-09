@@ -1,0 +1,7 @@
+Mount time:Mon 2013-12-09 02:01:16 EST
+fs_size: 1024MB
+fs_read:0MB
+fs_write:0MB
+gc_called:0
+gc_write:0MB
+Unmount time:Mon 2013-12-09 02:01:43 EST
