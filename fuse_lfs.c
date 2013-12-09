@@ -29,15 +29,15 @@ typedef struct meta_data{
   char *file_name;
   char *file_type;
   char *parent;
-  char **children;
+  int  children;
   char *created;
   char *updated;
   int data_size;
-  int meta_size;
-  int data_offset;
+  int block_offset;
 }Meta_data;
 
-Meta_data **dictionary;
+Meta_data *dictionary;
+
 int curr_block=3;
 static const char *hello_str = "Hello World!\n";
 static const char *hello_name = "hello";
@@ -107,8 +107,8 @@ static void dirbuf_add(fuse_req_t req, struct dirbuf *b, const char *name,
 static int reply_buf_limited(fuse_req_t req, const char *buf, size_t bufsize,
                              off_t off, size_t maxsize){
   if (off < bufsize)
-    return fuse_reply_buf(req, buf + off,
-			  min(bufsize - off, maxsize));
+  return fuse_reply_buf(req, buf + off,
+  			  min(bufsize - off, maxsize));
   else
     return fuse_reply_buf(req, NULL, 0);
 }
@@ -118,7 +118,7 @@ static void lfs_ll_readdir(fuse_req_t req, fuse_ino_t ino, size_t size,
   (void) fi;
   if (ino != 1)
     fuse_reply_err(req, ENOTDIR);
-  else {
+   else {
     struct dirbuf b;
     memset(&b, 0, sizeof(b));
     dirbuf_add(req, &b, ".", 1);
@@ -126,16 +126,16 @@ static void lfs_ll_readdir(fuse_req_t req, fuse_ino_t ino, size_t size,
     dirbuf_add(req, &b, hello_name, 2);
     reply_buf_limited(req, b.p, b.size, off, size);
     free(b.p);
-  }
+    }
 }
 
 static void lfs_ll_open(fuse_req_t req, fuse_ino_t ino,
                           struct fuse_file_info *fi){
-  if (ino != 2)
+   if (ino != 2)
     fuse_reply_err(req, EISDIR);
   else if ((fi->flags & 3) != O_RDONLY)
     fuse_reply_err(req, EACCES);
-  else
+    else
     fuse_reply_open(req, fi);
 }
 
@@ -146,17 +146,39 @@ static void lfs_ll_read(fuse_req_t req, fuse_ino_t ino, size_t size,
   reply_buf_limited(req, hello_str, strlen(hello_str), off, size);
 }
 
-static void lfs_ll_write(fuse_req_t req, fuse_ino_t ino, const char *buf, 
-			 size_t size, off_t off, struct fuse_file_info *fi){
-  Meta_data new_blk;
-  new_blk.file_name=fi->fh;
+static void lfs_ll_create(fuse_req_t req, fuse_ino_t parent, const char *name,
+		       mode_t mode, struct fuse_file_info *fi){
+  /*  Meta_data new_blk;
+  time_t created_t;
+  //new_blk.file_name=fi->fh;     
+  struct tm *ts;
+  char buf[80];
+  created_t = time(NULL);
+  tsm = localtime(&created_t);
+  strftime(buf1, sizeof(buf), "%a %Y-%m-%d %H:%M:%S %Z", ts);
+
   printf("%s",fi->fh);
-  dictionary[curr_block+1]= malloc(sizeof(Meta_data)); 
 
   if(ino != 1)
     fuse_reply_err(req,ENOENT);
   else
-    //pwrite(log_fp, buf, size, offset);
+  //pwrite(log_fp, buf, size, offset);*/                             
+    fuse_reply_write(req,fi);
+
+  
+
+}
+
+static void lfs_ll_write(fuse_req_t req, fuse_ino_t ino, const char *buf, 
+			 size_t size, off_t off, struct fuse_file_info *fi){
+  /*Meta_data new_blk;
+  //new_blk.file_name=fi->fh;
+  printf("%s",fi->fh); 
+
+  if(ino != 1)
+    fuse_reply_err(req,ENOENT);
+  else
+  //pwrite(log_fp, buf, size, offset);*/
     fuse_reply_write(req,fi);
 
 
@@ -169,6 +191,7 @@ static struct fuse_lowlevel_ops lfs_ll_oper = {
   .open           = lfs_ll_open,
   .read           = lfs_ll_read,
   .write          = lfs_ll_write,
+  .create         = lfs_ll_create,
 };
 
 int write_stats(){
@@ -198,6 +221,61 @@ int write_stats(){
   return 0;
 }
 
+int initialize_dictionary(void){
+  char * line = NULL;
+  size_t len = 0;
+  ssize_t read;
+  char *tok;
+  int count=0;
+  fseek(log_fp,0l,SEEK_END);
+  if(ftell(log_fp) == 0){ // new file system
+    return -1;
+  }else{
+    rewind(log_fp);
+    fseek(log_fp,0l,free_space);
+    while(!feof(log_fp)){
+    while((read = getline(&line, &len, log_fp)) != -1);// read line
+    if(strcmp(line,"<meta_data>") == 0){
+      Meta_data md;
+      while(1){
+	while((read = getline(&line, &len, log_fp)) != -1);// read line 
+	if(strcmp(line,"</meta_data>") == 0){
+	  dictionary[count]=md;
+	  count++;
+	  break;
+	}else{
+	  tok=strtok(line,":");
+	  if(strcmp("filename",&tok[0]) == 0){
+	    md.file_name = &tok[1];
+	  }else if(strcmp("filetype",&tok[0])== 0){
+            md.file_type = &tok[1];
+          }else if(strcmp("parent",&tok[0])== 0){
+            md.parent = &tok[1];
+          }else if(strcmp("created",&tok[0])== 0){
+            md.created = &tok[1];
+          }else if(strcmp("updated",&tok[0])== 0){
+            md.updated = &tok[1];
+          }else if(strcmp("datasize",&tok[0])== 0){
+            md.data_size = tok[1];
+          }else if(strcmp("children",&tok[0])== 0){
+		md.children = tok[1];
+          }else if(strcmp("offset",&tok[0])== 0){
+            md.block_offset = tok[1];
+          }
+	  
+	}
+      }
+    }
+      }
+  }
+  return 0;
+}
+
+void gabage_collector(){
+  gc_called++;
+  // to be implemented
+
+}
 
 int main(int argc, char *argv[]){
   // Initialize an empty argument list                                                  
@@ -211,13 +289,18 @@ int main(int argc, char *argv[]){
   log_file_path= argv[4];
   fs_size=atoi(argv[5])*1000000;
   num_blocks=fs_size/block_size;
+  if(num_blocks < 1000){
+    free_space =block_size;
+  }else
   free_space=block_size*4;
+
   dictionary= malloc(num_blocks*sizeof(int));
   log_fp = fopen (log_file_path,"a+");
   if (log_fp == NULL) {
     printf ("Data file could not be opened\n");
     return 1;
   }
+  initialize_dictionary();
   mount=time(NULL);
 
   struct fuse_args args = FUSE_ARGS_INIT(mountpt.argc, mountpt.argv);
