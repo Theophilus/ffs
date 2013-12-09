@@ -12,13 +12,7 @@
 
 FILE *log_fp;
 char *log_file_path;
-<<<<<<< HEAD
 char *stats_file_path="stats.txt";
-=======
-char *stats_file_path="stats.log";
-char *mount_path;
-char *test_path = "/test.txt";
->>>>>>> 3703500f617d07517a16f8259a7435204b53fd64
 int fs_size;
 int fs_read=0;
 int fs_write=0;
@@ -26,7 +20,6 @@ int gc_called=0;
 int gc_write=0;
 time_t mount;
 time_t unmount;
-<<<<<<< HEAD
 int block_size = 4096;
 int num_blocks;
 int free_space;
@@ -66,25 +59,6 @@ static int lfs_stat(fuse_ino_t ino, struct stat *stbuf){
     return -1;
   }
   return 0;
-=======
-
-static int lfs_getattr(const char *path, struct stat *stbuf){
-
-  int res = 0;
-   
-  memset(stbuf, 0, sizeof(struct stat));
-  if (strcmp(path, "/") == 0){
-    stbuf->st_mode = S_IFDIR | 0755;
-    stbuf->st_nlink = 2;
-  }else if (strcmp(path, test_path) == 0){
-    stbuf->st_mode = S_IFREG | 0444;
-    stbuf->st_nlink = 1;
-    stbuf->st_size = fs_size;
-  }else
-    res = -ENOENT;
- 
-  return res;
->>>>>>> 3703500f617d07517a16f8259a7435204b53fd64
 }
 
 static void lfs_ll_getattr(fuse_req_t req, fuse_ino_t ino,
@@ -112,29 +86,10 @@ static void lfs_ll_lookup(fuse_req_t req, fuse_ino_t parent, const char *name){
   }
 }
 
-<<<<<<< HEAD
 struct dirbuf {
   char *p;
   size_t size;
 };
-=======
-static int lfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
-                         off_t offset, struct fuse_file_info *fi){
-  //The DIR stuff was causing it to copy all the ilab directories.  This doesn't
-  //However I still can't figure out how to make a file appear in the new directory -.-
-  (void) offset;
-  (void)  fi;
-  
-  if(strcmp(path, "/") != 0)
-    return -ENOENT;
-    
-  filler(buf, ".", NULL, 0);
-  filler(buf, "..", NULL, 0);
-  filler(buf, test_path + 1, NULL, 0);
-  
-  return 0;
-}
->>>>>>> 3703500f617d07517a16f8259a7435204b53fd64
 
 static void dirbuf_add(fuse_req_t req, struct dirbuf *b, const char *name,
                        fuse_ino_t ino){
@@ -147,7 +102,7 @@ static void dirbuf_add(fuse_req_t req, struct dirbuf *b, const char *name,
   fuse_add_direntry(req, b->p + oldsize, b->size - oldsize, name, &stbuf,
 		    b->size);
 }
-<<<<<<< HEAD
+
 #define min(x, y) ((x) < (y) ? (x) : (y))
 static int reply_buf_limited(fuse_req_t req, const char *buf, size_t bufsize,
                              off_t off, size_t maxsize){
@@ -156,22 +111,11 @@ static int reply_buf_limited(fuse_req_t req, const char *buf, size_t bufsize,
 			  min(bufsize - off, maxsize));
   else
     return fuse_reply_buf(req, NULL, 0);
-=======
-
-static int lfs_open(const char *path, struct fuse_file_info *fi){
-  if (strcmp(path, test_path) != 0)
-    return -ENOENT;
-  if ((fi->flags & 3) != O_RDONLY)
-    return -EACCES;
-  return 0;
-
->>>>>>> 3703500f617d07517a16f8259a7435204b53fd64
 }
 
 static void lfs_ll_readdir(fuse_req_t req, fuse_ino_t ino, size_t size,
                              off_t off, struct fuse_file_info *fi){
   (void) fi;
-<<<<<<< HEAD
   if (ino != 1)
     fuse_reply_err(req, ENOTDIR);
   else {
@@ -184,15 +128,6 @@ static void lfs_ll_readdir(fuse_req_t req, fuse_ino_t ino, size_t size,
     free(b.p);
   }
 }
-=======
-  fd = open(log_file_path, O_RDONLY);
-  if (fd == -1)
-    return -errno;
-
-  res = pread(fd, buf, size, offset);
-  if (res == -1)
-    res = -errno;
->>>>>>> 3703500f617d07517a16f8259a7435204b53fd64
 
 static void lfs_ll_open(fuse_req_t req, fuse_ino_t ino,
                           struct fuse_file_info *fi){
@@ -267,7 +202,6 @@ int write_stats(){
 int main(int argc, char *argv[]){
   // Initialize an empty argument list                                                  
   struct fuse_args mountpt = FUSE_ARGS_INIT(0, NULL);
-<<<<<<< HEAD
   // add program and mountpoint                                   
   fuse_opt_add_arg(&mountpt, argv[0]);
   fuse_opt_add_arg(&mountpt, argv[1]);
@@ -313,17 +247,5 @@ int main(int argc, char *argv[]){
   free(dictionary);
   fclose(log_fp);
   return err ? 1 : 0;
-=======
-  //add program and mountpoint
-  fuse_opt_add_arg(&mountpt, argv[0]);
-  fuse_opt_add_arg(&mountpt, argv[1]);
-  fuse_opt_add_arg(&mountpt, argv[2]);// for debug
-  fuse_opt_add_arg(&mountpt, argv[3]);// for debug
-  log_file_path= argv[4];
-  mount_path = argv[1];
-  printf("%s\n",mount_path);
-  fs_size= argv[5];
-  umask(0);
-  return fuse_main(mountpt.argc, mountpt.argv, &lfs_oper, NULL);
->>>>>>> 3703500f617d07517a16f8259a7435204b53fd64
+
 }
