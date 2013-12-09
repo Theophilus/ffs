@@ -11,6 +11,8 @@
 
 char *log_file_path;
 char *stats_file_path="stats.log";
+char *mount_path;
+char *test_path = "/test.txt";
 int fs_size;
 int fs_read=0;
 int fs_write=0;
@@ -21,12 +23,20 @@ time_t unmount;
 
 static int lfs_getattr(const char *path, struct stat *stbuf){
 
-  int res;
-  res = lstat(path, stbuf);
-  if (res == -1)
-    return -errno;
-
-  return 0;
+  int res = 0;
+   
+  memset(stbuf, 0, sizeof(struct stat));
+  if (strcmp(path, "/") == 0){
+    stbuf->st_mode = S_IFDIR | 0755;
+    stbuf->st_nlink = 2;
+  }else if (strcmp(path, test_path) == 0){
+    stbuf->st_mode = S_IFREG | 0444;
+    stbuf->st_nlink = 1;
+    stbuf->st_size = fs_size;
+  }else
+    res = -ENOENT;
+ 
+  return res;
 }
 
 static int lfs_access(const char *path, int mask){
@@ -62,7 +72,7 @@ static int lfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
     
   filler(buf, ".", NULL, 0);
   filler(buf, "..", NULL, 0);
-  filler(buf, log_file_path + 1, NULL, 0);
+  filler(buf, test_path + 1, NULL, 0);
   
   return 0;
 }
@@ -76,12 +86,10 @@ static int lfs_chmod(const char *path, mode_t mode){
 }
 
 static int lfs_open(const char *path, struct fuse_file_info *fi){
-  int res;
-  res = open(path, fi->flags);
-  if (res == -1)
-    return -errno;
-
-  close(res);
+  if (strcmp(path, test_path) != 0)
+    return -ENOENT;
+  if ((fi->flags & 3) != O_RDONLY)
+    return -EACCES;
   return 0;
 
 }
@@ -92,7 +100,7 @@ static int lfs_read(const char *path, char *buf, size_t size, off_t offset,
   int res;
 
   (void) fi;
-  fd = open(path, O_RDONLY);
+  fd = open(log_file_path, O_RDONLY);
   if (fd == -1)
     return -errno;
 
@@ -183,13 +191,15 @@ int main(int argc, char *argv[]){
 
   // Initialize an empty argument list
   struct fuse_args mountpt = FUSE_ARGS_INIT(0, NULL);
-  // add program and mountpoint
+  //add program and mountpoint
   fuse_opt_add_arg(&mountpt, argv[0]);
   fuse_opt_add_arg(&mountpt, argv[1]);
   fuse_opt_add_arg(&mountpt, argv[2]);// for debug
   fuse_opt_add_arg(&mountpt, argv[3]);// for debug
-  log_file_path= argv[3];
-  fs_size= argv[4];
+  log_file_path= argv[4];
+  mount_path = argv[1];
+  printf("%s\n",mount_path);
+  fs_size= argv[5];
   umask(0);
   return fuse_main(mountpt.argc, mountpt.argv, &lfs_oper, NULL);
 }
