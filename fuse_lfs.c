@@ -283,11 +283,11 @@ int main(int argc, char *argv[]){
   // add program and mountpoint                                   
   fuse_opt_add_arg(&mountpt, argv[0]);
   fuse_opt_add_arg(&mountpt, argv[1]);
-  fuse_opt_add_arg(&mountpt, argv[2]);// for debug                            
-  fuse_opt_add_arg(&mountpt, argv[3]);// for debug                   
+  //fuse_opt_add_arg(&mountpt, argv[2]);// for debug                            
+  //fuse_opt_add_arg(&mountpt, argv[3]);// for debug                   
 
-  log_file_path= argv[4];
-  fs_size=atoi(argv[5])*1000000;
+  log_file_path= argv[2];
+  fs_size=atoi(argv[3])*1000000;
   num_blocks=fs_size/block_size;
   if(num_blocks < 1000){
     free_space =block_size;
